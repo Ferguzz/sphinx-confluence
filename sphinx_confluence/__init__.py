@@ -560,7 +560,7 @@ def setup(app):
     confluence_link = ConfluenceLinkRole('confluence_link', nodes.Inline)
     app.add_role(confluence_link.name, confluence_link)
 
-    # app.config.html_theme_path = [get_path()]
+    app.config.html_theme_path = [get_path()]
     # app.config.html_theme = 'confluence'
     # app.config.html_scaled_image_link = False
     # app.config.html_translator_class = 'sphinx_confluence.HTMLConfluenceTranslator'
