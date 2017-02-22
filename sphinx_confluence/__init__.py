@@ -525,6 +525,21 @@ class JiraUserRole(roles.GenericRole):
         return [nodes.raw('', macro.format(username=text), **attributes)], []
 
 
+class ConfluenceLinkRole(roles.GenericRole):
+    def __call__(self, role, rawtext, text, *args, **kwargs):
+        display, page_title = rawtext.split('|')
+        macro = """\
+        <ac:link>
+        <ri:page ri:content-title="{page_title}" />
+        <ac:plain-text-link-body>
+         <![CDATA[{display}]]>
+        </ac:plain-text-link-body>
+        </ac:link>
+        """
+        attributes = {'format': 'html'}
+        return [nodes.raw('', macro.format(display=display, page_title=page_title), **attributes)], []
+
+
 def underscore_to_camelcase(text):
     return ''.join(word.title() if i else word for i, word in enumerate(text.split('_')))
 
@@ -540,19 +555,24 @@ def setup(app):
     """
     :type app: sphinx.application.Sphinx
     """
-    app.config.html_theme_path = [get_path()]
-    app.config.html_theme = 'confluence'
-    app.config.html_scaled_image_link = False
-    app.config.html_translator_class = 'sphinx_confluence.HTMLConfluenceTranslator'
-    app.config.html_add_permalinks = ''
+    app.set_translator('html', HTMLConfluenceTranslator)
 
-    jira_issue = JiraIssueRole('jira_issue', nodes.Inline)
-    app.add_role(jira_issue.name, jira_issue)
+    confluence_link = ConfluenceLinkRole('confluence_link', nodes.Inline)
+    app.add_role(confluence_link.name, confluence_link)
 
-    jira_user = JiraUserRole('jira_user', nodes.Inline)
-    app.add_role(jira_user.name, jira_user)
+    # app.config.html_theme_path = [get_path()]
+    # app.config.html_theme = 'confluence'
+    # app.config.html_scaled_image_link = False
+    # app.config.html_translator_class = 'sphinx_confluence.HTMLConfluenceTranslator'
+    # app.config.html_add_permalinks = ''
 
-    app.add_directive('image', ImageConf)
-    app.add_directive('toctree', TocTree)
-    app.add_directive('jira_issues', JiraIssuesDirective)
-    app.add_builder(JSONConfluenceBuilder)
+    # jira_issue = JiraIssueRole('jira_issue', nodes.Inline)
+    # app.add_role(jira_issue.name, jira_issue)
+
+    # jira_user = JiraUserRole('jira_user', nodes.Inline)
+    # app.add_role(jira_user.name, jira_user)
+
+    # app.add_directive('image', ImageConf)
+    # app.add_directive('toctree', TocTree)
+    # app.add_directive('jira_issues', JiraIssuesDirective)
+    # app.add_builder(JSONConfluenceBuilder)
