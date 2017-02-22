@@ -527,7 +527,11 @@ class JiraUserRole(roles.GenericRole):
 
 class ConfluenceLinkRole(roles.GenericRole):
     def __call__(self, role, rawtext, text, *args, **kwargs):
-        display, page_title = rawtext.split('|')
+        if '|' in rawtext:
+            display, page_title = rawtext.split('|')
+        else:
+            display, page_title = rawtext, rawtext
+
         macro = """\
         <ac:link>
         <ri:page ri:content-title="{page_title}" />
