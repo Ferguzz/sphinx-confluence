@@ -55,6 +55,10 @@ class JSONConfluenceBuilder(JSONHTMLBuilder):
 
 
 class HTMLConfluenceTranslator(HTMLTranslator):
+    def __init__(self, *args, **kwargs):
+        HTMLTranslator.__init__(self, *args, **kwargs)
+        self.initial_header_level = 2
+
     def unimplemented_visit(self, node):
         self.builder.warn('Unimplemented visit is not implemented for node: {}'.format(node))
 
