@@ -55,10 +55,6 @@ class JSONConfluenceBuilder(JSONHTMLBuilder):
 
 
 class HTMLConfluenceTranslator(HTMLTranslator):
-    def __init__(self, *args, **kwargs):
-        HTMLTranslator.__init__(self, *args, **kwargs)
-        self.initial_header_level = 2
-
     def unimplemented_visit(self, node):
         self.builder.warn('Unimplemented visit is not implemented for node: {}'.format(node))
 
@@ -315,40 +311,57 @@ class HTMLConfluenceTranslator(HTMLTranslator):
         self.section_level -= 1
 
     def visit_reference(self, node):
-        atts = {'class': 'reference'}
-        if node.get('internal') or 'refuri' not in node:
-            atts['class'] += ' internal'
+        if 'refuri' in node and node['refuri'].startswith('page://'):
+            page_title = node['refuri'][len('page://'):].replace('+', ' ')
+            display = node.astext()
+            if '#' in page_title:
+                # anchors don't work yet...
+                page_title, anchor = page_title.split('#')
+            macro = """
+                <ac:link>
+                <ri:page ri:content-title="%s" />
+                <ac:plain-text-link-body>
+                 <![CDATA[%s]]>
+                </ac:plain-text-link-body>
+                </ac:link>
+            """ % (page_title, display)
+            self.body.append(macro)
+            raise nodes.SkipNode
         else:
-            atts['class'] += ' external'
-        if 'refuri' in node:
-            atts['href'] = ''
-            # Confluence makes internal links with prefix from page title
-            if node.get('internal') and TitlesCache.has_title(self.document):
-                atts['href'] += '#%s-' % TitlesCache.get_title(self.document).replace(' ', '')
+            atts = {'class': 'reference'}
+            if node.get('internal') or 'refuri' not in node:
+                atts['class'] += ' internal'
+            else:
+                atts['class'] += ' external'
+            if 'refuri' in node:
+                atts['href'] = ''
+                # Confluence makes internal links with prefix from page title
+                if node.get('internal') and TitlesCache.has_title(self.document):
+                    atts['href'] += '#%s-' % TitlesCache.get_title(self.document).replace(' ', '')
 
-            atts['href'] += node['refuri']
-            if self.settings.cloak_email_addresses and atts['href'].startswith('mailto:'):
-                atts['href'] = self.cloak_mailto(atts['href'])
-                self.in_mailto = 1
-        else:
-            assert 'refid' in node, 'References must have "refuri" or "refid" attribute.'
+                atts['href'] += node['refuri']
+                if self.settings.cloak_email_addresses and atts['href'].startswith('mailto:'):
+                    atts['href'] = self.cloak_mailto(atts['href'])
+                    self.in_mailto = 1
+            else:
+                assert 'refid' in node, 'References must have "refuri" or "refid" attribute.'
 
-            atts['href'] = ''
-            # Confluence makes internal links with prefix from page title
-            if node.get('internal') and TitlesCache.has_title(self.document):
-                atts['href'] += '#%s-' % TitlesCache.get_title(self.document).replace(' ', '')
-            atts['href'] += node['refid']
+                atts['href'] = ''
+                # Confluence makes internal links with prefix from page title
+                if node.get('internal') and TitlesCache.has_title(self.document):
+                    atts['href'] += '#%s-' % TitlesCache.get_title(self.document).replace(' ', '')
+                atts['href'] += node['refid']
 
-        if not isinstance(node.parent, nodes.TextElement):
-            assert len(node) == 1 and isinstance(node[0], nodes.image)
-            atts['class'] += ' image-reference'
-        if 'reftitle' in node:
-            atts['title'] = node['reftitle']
+            if not isinstance(node.parent, nodes.TextElement):
+                assert len(node) == 1 and isinstance(node[0], nodes.image)
+                atts['class'] += ' image-reference'
+            if 'reftitle' in node:
+                atts['title'] = node['reftitle']
 
-        self.body.append(self.starttag(node, 'a', '', **atts))
+            self.body.append(self.starttag(node, 'a', '', **atts))
 
-        if node.get('secnumber'):
-            self.body.append(('%s' + self.secnumber_suffix) % '.'.join(map(str, node['secnumber'])))
+            if node.get('secnumber'):
+                self.body.append(('%s' + self.secnumber_suffix) % '.'.join(map(str, node['secnumber'])))
 
     def visit_desc(self, node):
         """ Replace <dl> """
@@ -529,25 +542,6 @@ class JiraUserRole(roles.GenericRole):
         return [nodes.raw('', macro.format(username=text), **attributes)], []
 
 
-class ConfluenceLinkRole(roles.GenericRole):
-    def __call__(self, role, rawtext, text, *args, **kwargs):
-        if '|' in rawtext:
-            display, page_title = rawtext.split('|')
-        else:
-            display, page_title = rawtext, rawtext
-
-        macro = """\
-        <ac:link>
-        <ri:page ri:content-title="{page_title}" />
-        <ac:plain-text-link-body>
-         <![CDATA[{display}]]>
-        </ac:plain-text-link-body>
-        </ac:link>
-        """
-        attributes = {'format': 'html'}
-        return [nodes.raw('', macro.format(display=display, page_title=page_title), **attributes)], []
-
-
 def underscore_to_camelcase(text):
     return ''.join(word.title() if i else word for i, word in enumerate(text.split('_')))
 
@@ -564,10 +558,6 @@ def setup(app):
     :type app: sphinx.application.Sphinx
     """
     app.set_translator('html', HTMLConfluenceTranslator)
-
-    confluence_link = ConfluenceLinkRole('confluence_link', nodes.Inline)
-    app.add_role(confluence_link.name, confluence_link)
-
     app.config.html_theme_path = [get_path()]
     # app.config.html_theme = 'confluence'
     # app.config.html_scaled_image_link = False
